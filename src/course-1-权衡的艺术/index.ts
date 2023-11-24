@@ -19,4 +19,6 @@ const vnode = {
 
 Render(vnode, document.getElementById('app')!);
 
+export default void 0;
+
 
