@@ -1,4 +1,4 @@
-// 模拟将 js 对象转成 DOM 节点
+/** js 对象转 DOM 元素（简易版） */
 function Render(obj: any, root: HTMLElement) {
 	const ele = document.createElement(obj.tag) as HTMLElement;
 	if (typeof obj.children === 'string') {
@@ -8,7 +8,6 @@ function Render(obj: any, root: HTMLElement) {
 	}
 	root.appendChild(ele);
 }
-
 
 const vnode = {
 	tag: 'div',
@@ -20,5 +19,3 @@ const vnode = {
 Render(vnode, document.getElementById('app')!);
 
 export default void 0;
-
-
