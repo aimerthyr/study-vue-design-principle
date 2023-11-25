@@ -1,6 +1,6 @@
 
 // 原始对象
-const data = { num: 1 };
+const data = { num1: 1, num2: 2 };
 /**
  * 存储依赖关系的桶
  * 第一层用 weakMap key 是 原始对象 value 是一个 map
@@ -65,7 +65,7 @@ function trigger(target: any, key: any) {
 	effects && new Set(effects).forEach((effect: any) => {
 		// 如果 trigger 触发的副作用函数刚好等于当前正在执行的副作用函数，则不触发执行（防止出现无线递归）
 		if (activeEffect === effect) return;
-		if (effect.options.scheduler) {
+		if (effect.options?.scheduler) {
 			effect.options.scheduler(effect);
 		} else {
 			effect();
@@ -74,7 +74,7 @@ function trigger(target: any, key: any) {
 }
 
 // 注册副作用函数
-function effect(fn: any, options: any) {
+function effect(fn: any, options?: any) {
 	/**
    * 注册完之后，其实真正的副作用函数变成了 effectFn
    * 所以当 trigger 触发时，会执行这里的 effectFn 然后接触所有绑定了 effectFn 的依赖
@@ -85,14 +85,18 @@ function effect(fn: any, options: any) {
 		activeEffect = effectFn;
 		// 在调用副作用函数之前将当前副作用函数压栈
 		globalEffectStack.push(effectFn);
-		fn();
+		const res = fn();
 		// 在当前副作用函数执行完毕后，将当前副作用函数弹出栈，并还原 activeEffect 为之前的值
 		globalEffectStack.pop();
 		activeEffect = globalEffectStack[globalEffectStack.length - 1];
+		return res;
 	};
 	effectFn.options = options;
 	effectFn.deps = [];
-	effectFn();
+	if (!options?.lazy) {
+		effectFn();
+	}
+	return effectFn;
 }
 
 
@@ -107,33 +111,44 @@ function cleanup(effectFn) {
 	effectFn.deps.length = 0;
 }
 
-// 定义一个队列，并且用 Set 做去重操作
-const jobQueue = new Set();
-// 模拟微任务
-const p = Promise.resolve();
 
-let isFlushing = false;
-function flushJob() {
-	if (isFlushing) return;
-	isFlushing = true;
-	p.then(() => {
-		jobQueue.forEach((job: any) => job());
-	}).finally(() => {
-		isFlushing = false;
+
+
+function computed(getter) {
+	let value;
+	let dirty = true;
+	const effectFn =  effect(getter, {
+		lazy: true,
+		scheduler() {
+			// 说明有关依赖发生了变化，就代表需要重新计算
+			if (!dirty) {
+				dirty = true;
+				// 如果 data.num1 和 data.num2 发生了变化，就需要重新去触发 data 的副作用函数
+				trigger(data, 'value');
+			}
+		}
 	});
+	const data = {
+		get value() {
+			// 说明需要重新计算
+			if (dirty) {
+				value = effectFn();
+				dirty = false;
+			}
+			// 当访问 value 的时候，就需要把当前 data 给放入到依赖收集中
+			track(data, 'value');
+			return value;
+		}
+	};
+	return data;
 }
 
-
-
+const sum = computed(() => obj.num1 + obj.num2);
 effect(() => {
-	console.log(obj.num);
-}, {
-	scheduler: (fn: () => void) => {
-		jobQueue.add(fn);
-		flushJob();
-	}
+	console.log(sum.value);
 });
-obj.num++;
-obj.num++;
+setTimeout(() => {
+	obj.num1 = 4;
+}, 1000);
 
 export default void 0;
