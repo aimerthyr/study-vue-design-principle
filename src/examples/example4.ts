@@ -19,6 +19,8 @@ const bucket = new WeakMap();
 
 // 全局的副作用函数
 let activeEffect: { (): any; deps: Set<any>[]; };
+const globalEffectStack: Array<{ (): any; deps: Set<any>[]; }> = [];
+
 
 // 代理对象
 const obj = new Proxy(data, {
@@ -69,7 +71,14 @@ function effect(fn: any) {
    */
 	const effectFn = () => {
 		cleanup(effectFn);
+		// 当调用 effect 注册副作用函数时，将副作用函数复制给 activeEffect
+		activeEffect = effectFn;
+		// 在调用副作用函数之前将当前副作用函数压栈
+		globalEffectStack.push(effectFn);
 		fn();
+		// 在当前副作用函数执行完毕后，将当前副作用函数弹出栈，并还原 activeEffect 为之前的值
+		globalEffectStack.pop();
+		activeEffect = globalEffectStack[globalEffectStack.length - 1];
 	};
 	effectFn.deps = [];
 	effectFn();
@@ -85,18 +94,24 @@ function cleanup(effectFn) {
 		deps.delete(effectFn);
 	}
 	effectFn.deps.length = 0;
-	activeEffect = effectFn;
 }
 
-effect(() => {
-	console.log('我执行了');
-	document.body.innerText = obj.isShowTitle ?  obj.title : '111';
+let temp1, temp2;
+
+// effectFn1 嵌套了 effectFn2
+effect(function effectFn1() {
+	console.log('effectFn1 执行');
+	effect(function effectFn2() {
+		console.log('effectFn2 执行');
+		// 在 effectFn2 中读取 obj.bar 属性
+		temp2 = obj.isShowTitle;
+	});
+	// 在 effectFn1 中读取 obj.foo 属性
+	temp1 = obj.title;
 });
 
+
 setTimeout(() => {
-	obj.isShowTitle = false;
-	obj.title = 'hello vue 3';
+	obj.title = '我是标题2';
 }, 1000);
-
 export default void 0;
-
