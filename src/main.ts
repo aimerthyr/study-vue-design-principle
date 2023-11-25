@@ -8,5 +8,7 @@
 // import './examples/example4';
 /** 响应式系统解析（处理无限递归和调度） */
 // import './examples/example5';
-/** 响应式系统解析 （实现 computed ） */
-import './examples/example6';
+/** 响应式系统解析 （实现一个 computed ） */
+// import './examples/example6';
+/** 响应式系统解析 （实现一个 watch ） */
+import './examples/example7';
